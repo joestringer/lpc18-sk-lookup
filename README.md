@@ -31,3 +31,18 @@ whether traffic for this connection has been seen before. With this new
 functionality, BPF programs can integrate more closely with the networking
 stack's understanding of the traffic transiting the kernel.
 
+## Build Dependencies
+
+On Debian-based systems (including Ubuntu):
+
+`$ sudo apt install texlive texlive-latex-extra`
+
+## Building & Previewing
+
+To build the PDFs:
+
+`$ make`
+
+Or, to build & open automatically:
+
+`$ make open`
