@@ -95,34 +95,25 @@ whether traffic for this connection has been seen before. With this new
 functionality, BPF programs can integrate more closely with the networking
 stack's understanding of the traffic transiting the kernel.
 
-This safety is provided by tracking pointer values through each conditional
-path in the program, and rejecting the load of programs that fail to "balance"
-resource acquisition (lookup) with release.
+\todo{Desire to target logic based upon socket existence/attributes at packet
+layers}
 
-\section{Background}
+\section{Extending the Verifier}
+
+%To validate access around sockets, the verifier must have knowledge of the
+%socket type to validate that access is within bounds and is safe with respect
+%to read or write.
 
 The BPF verifier must ensure that all BPF programs that are loaded into the
-kernel are safe to execute. For proposed access into socket types, this
-requires validation that memory accesses within the socket memory are
-appropriate with respect to the bounds of the structure and the norms of
-read/write access, as well as guaranteeing that underlying socket memory
-remains associated with the socket for the duration of accesses from the BPF
-program.
-
-For some socket types, such as UDP sockets, or TCP listen sockets, memory
-access safety can be achieved with minimal implementation: The destruction of
-such sockets is already governed by standard RCU rules, meaning that while the
-RCU lock is held, they can be safely referenced; Once the RCU grace period is
-reached, the memory may be freed and references to the socket are no longer
-safe to use. Because BPF programs run under the RCU lock, this allows simple,
-safe access of properties of these sockets without requiring additional
-mechanisms to ensure the safety of the socket pointers.
-
-When it comes to TCP sockets that are not governed by RCU, the networking stack
-uses reference counting to manage socket memory instead. To ensure that the
-socket remains safe to access for a period of BPF program execution, the BPF
-program must also take a reference on the socket. This also implies that such
-references must be subsequently released to prevent leaking kernel resources.
+kernel are safe to execute. For accessing socket pointers, this requires
+validation that memory accesses are within the bounds of the memory allocated
+for the structure, and will not make any modifications to the socket fields
+that would be incompatible with the core socket handling logic. This is
+provided through extension of existing functionality which provides bounds
+verification and offset conversion for programs operating on CGroups hooks.
+Additionally, the underlying socket memory must remain associated with the
+socket for the duration of accesses from the BPF program, which may be
+guaranteed by taking a reference on sockets for the duration of their use.
 
 \subsection{Pointers to Sockets}
 
@@ -142,26 +133,43 @@ type that is different from \verb+bpf_sock+, so some additional logic was
 required in the verifier to understand this pointer type. The patch series
 associated with this paper introduced a new pointer type specific to sockets,
 and linked its validation directly to the aforementioned socket verification
-functions without using the verifier operations abstraction.
+functions without using the verifier operations abstraction. Write operations
+into the socket are rejected in the current implementation.
 
 With the verifier now aware of socket pointer types, this could be built upon
 to implicitly associate socket pointers with references to kernel resources.
 
 \subsection{Reference tracking}
 
-Alternatives:
-\begin{itemize}
-\item RCU-protect other socket types
-\item Collect references during program execution and release afterwards
-\item Build acquire/release semantics into the API
-\end{itemize}
+As with many other structure types, Linux sockets are reference-counted to
+track usage and handle memory release. In general, to ensure the safety of
+socket for the duration of access in BPF programs, when sockets are referenced
+from BPF programs the reference count for the socket needs to be incremented.
+Two options were considered for how to guarantee this: Implicit reference
+tracking and explicit reference tracking.
 
-Collecting references and releasing afterwards has the unfortunate overhead
-that even the execution of BPF programs that do not make use of the new socket
-lookup helpers would need to pay the cost of checking the list of references
-to free. When dealing with sufficiently demanding use cases such as those which
-use XDP, even the few instructions required to implement such a check may have
-a measurable impact on performance.
+Implicit reference tracking calls for the BPF infrastructure to handle
+reference tracking, and to hide this detail from the BPF API. Whenever a socket
+lookup function is called, a reference is taken and the socket is added to a
+reference list. At the end of the BPF program execution, the core code could
+walk this reference list and release each reference. However, collecting
+references and releasing them at the end of the BPF program invocation has the
+unfortunate overhead that even the execution of BPF programs that do not make
+use of the new socket lookup helpers would need to pay the cost of checking the
+list of references to free. When dealing with sufficiently demanding use cases
+such as those which use XDP, even the few instructions required to implement
+such a check may have a measurable impact on performance.
+
+Explicit reference tracking calls for reference acquisition and release
+semantics to be built into the API. If references must be taken, then requiring
+BPF program writers to explicitly handle these references ensures that the
+program writer must understand the potential impact this may have on the
+operation of the program (including atomic operation cost), and it also ensures
+that the cost is only borne by programs that make use of this feature.
+
+\todo{Lead into the implementation} This safety is provided by tracking pointer
+values through each conditional path in the program, and rejecting the load of
+programs that fail to "balance" resource acquisition (lookup) with release.
 
 Calls to helper functions which acquire references to resources are annotated
 in the verifier to associate the acquisition and release functions. When the
@@ -169,18 +177,156 @@ instruction that acquires a resource is processed, the verifier state is
 updated to include a resource identifier for the resulting value, and the
 register's value is associated with this identifier. When processing a
 corresponding release helper call, if a parameter to the function contains a
-resource identifier, then the corresponding identifire is removed from the
+resource identifier, then the corresponding identifier is removed from the
 verifier state. If any paths in the program reach the final (\verb+BPF_EXIT+)
 instruction and the verifier state still contains resource identifiers, then
 the program is considered unsafe as it has leaked the resource.
 
 \subsection{Runtime protection}
 
-\todo{LD\_ABS, LD\_IND}
+The verifier is tasked with ensuring that all BPF program execution flow is
+safe to the extents where it interacts with the BPF API. In general, BPF
+programs, once verified and triggered by event hooks, will execute from the
+first instruction through the final instruction for a particular path through
+the program. Therefore, after execution of a BPF program containing resource
+acquire and release functions which are verified by the logic above, the
+underlying resources should not leak.
+
+One exception to this is when classic BPF \verb+LD_ABS+ or \verb+LD_IND+
+instructions are used in the BPF program. These instructions were previously
+used to provide direct packet access, with the semantics that if the access
+offset exceeds the length of the packet, the BPF program would be terminated
+prior to the final state. Without mitigation, this could lead to leaking of
+references. Newer BPF APIs provide better alternatives for packet access, so we
+disallow the use of these instructions while holding a socket reference.
 
 \section{Extending the BPF API}
 
+To implement explicit reference tracking, the API required at least two
+functions to handle referencing of sockets from the BPF API: A socket lookup
+function and a socket release function. This section describes the API
+considerations for each of these.
 
+\subsection{API definition}
+
+The following considerations were made for implementing the lookup helpers:
+
+\begin{itemize}
+    \item The Linux stack may contain multiple network namespaces, where the
+          BPF program may operate attached to a device in one network namespace
+          while the desired socket may exist in another network namespace.
+    \item BPF programmers may wish to discover sockets that are not directly
+          related to the BPF program context (packet, socket, etc).
+    \item Current use cases are focused around UDP and TCP sockets, however
+          there may be a desire to extend this in future.
+\end{itemize}
+
+The consideration of each of these items reflects the definition of the lookup
+helpers (Listing~\ref{lst:helper-api}):
+
+\todo{Span this listing across two columns}
+\begin{lstlisting}[caption={BPF API helper functions for socket lookup},language=c,label=lst:helper-api,breaklines=true]
+struct bpf_sock *bpf_sk_lookup_tcp(void *ctx, struct bpf_sock_tuple *tuple, u32 tuple_size,
+                                   u32 netns, u64 flags)
+struct bpf_sock *bpf_sk_lookup_udp(void *ctx, struct bpf_sock_tuple *tuple, u32 tuple_size,
+                                   u32 netns, u64 flags)
+int bpf_sk_release(struct bpf_sock *sk)
+\end{lstlisting}
+
+\subsubsection{Namespacing.}
+
+Linux network devices are associated with a particular network namespace which
+provides logical network stack separation. Sockets are also inherently
+associated with an application that operates in a particular network namespace.
+The simplest path for handling namespacing from the lookup handlers would be to
+allow BPF programs operating on a device within a network namespace to only
+find sockets in the same network namespace. By passing the BPF program context
+into the socket lookup helper, the implementation can derive the source network
+namespace from this context. Beyond this, with the growing popularity of
+containers it may be desirable for a network orchestration tool to make use of
+socket properties inside container network namespaces to influence decisions
+made on packets outside the container---for instance, on packets being received
+into a node prior to the packet passing into the container network namespace,
+or if filtering is implemented on a veth pair outside of a container. By
+allowing the netns ID to be specified, this use case can be supported as well.
+
+\subsubsection{Tuple definition.}
+
+A common use case for the socket lookup functions would call them from a packet
+context, where the \verb+__sk_buff+ has the full 5-tuple information available
+and easily accessible. One could imagine a simpler helper function that allows
+the BPF program writer to provide the \verb+__sk_buff+ to the helper function,
+then the helper function would look up the socket based upon the packet
+metadata. This would however limit the potential uses for such a helper. Two
+cases that would be more limited with this model are usage from XDP, or if the
+BPF program implements a form of network address translation. From XDP, if the
+raw \verb+xdp_md+ context is provided to such a helper, then the helper would
+need to parse the packet to understand the 5-tuple. This would duplicate the
+standard stack paths which are executed after XDP where the \verb+sk_buff+ is
+built, but this information would be subsequently thrown away upon return of
+the helper call. Adding to this, if the program performs network address
+translation between the local application and the remote destination, then the
+local stack may not contain a socket associated with the tuple that is directly
+in the packet. While these cases could be worked around with a simpler helper,
+it was deemed more powerful and generic to allow the BPF program writer to
+provide the tuple for lookup.
+
+\subsubsection{Extensibility.}
+
+New kernel APIs that have any scope for extension should contain a flags
+argument. For the socket lookup helpers, a few ideas had been considered as
+potential future alternatives to the existing behaviour. The lookup functions
+follow the standard socket lookup paths in Linux which have predetermined
+methods for selecting a socket when the application uses \verb+SO_REUSEPORT+.
+Some discussion on the mailinglist proposed allowing BPF program writers to
+influence the socket selection mechanism~\cite{netdev-sk-select}.
+
+\subsubsection{Result.}
+
+Another aspect of extensibility is the ability to lookup sockets which are not
+TCP or UDP. The initial RFC of this patch series proposed a single lookup
+function which would choose the L4 protocol based upon a field in the
+tuple~\cite{sk-lookup-rfc}, however this would make it more difficult for BPF
+program writers to detect the support for different protocol types at compile
+time. There is not a significant number of supported L4 socket types in the
+Linux stack today, and the number is not expected to increase drastically, so
+it was considered simpler and easier to split out each L4 socket lookup
+function into an independent helper call.
+
+\subsection{Optimizations}
+
+\subsubsection{Avoid reference counting when unnecessary.}
+
+For some socket types, such as UDP sockets, or TCP listen sockets, memory
+access safety can be achieved with minimal implementation: The destruction of
+such sockets is already governed by standard RCU rules, meaning that while the
+RCU lock is held, they can be safely referenced; Once the RCU grace period is
+reached, the memory may be freed and references to the socket are no longer
+safe to use. Because BPF programs run under the RCU lock, this allows simple,
+safe access of properties of these sockets without requiring additional
+mechanisms to ensure the safety of the socket pointers.
+
+When it comes to TCP sockets that are not governed by RCU, the networking stack
+uses reference counting to manage socket memory instead. To ensure that the
+socket remains safe to access for a period of BPF program execution, the BPF
+program must also take a reference on the socket. This also implies that such
+references must be subsequently released to prevent leaking kernel resources.
+
+\subsubsection{Allow lookup using direct packet pointers.}
+
+The tuple structure is defined in such a way that if the IPv4 or IPv6 packet is
+immediately followed by the TCP or UDP header without IP options in between,
+then a pointer directly to the L3 addresses may be passed to the lookup
+function, allowing the helper function to directly pull the addresses and ports
+from the packet buffer rather than requiring the BPF program to first extract
+these onto the stack.
+
+\subsection{Future work}
+
+The implementation intruduced in the 4.20 release cycle includes support for
+looking up TCP and UDP sockets for IPv4 and IPv6 traffic, using the \verb+tc+
+and \verb+sk_skb+ hook points. A proposed patchset extends this to allow the
+same helpers to be used from the \verb+xdp+ hook points.
 
 \section{Use cases}
 
