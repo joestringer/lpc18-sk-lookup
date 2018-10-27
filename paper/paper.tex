@@ -81,6 +81,8 @@ BPF, Linux, packet processing, sockets
       BPF programs
 \end{itemize}
 
+\todo{Rewrite introduction}
+
 % Over the past several years, BPF has steadily become more powerful in
 % multiple ways: Through building more intelligence into the verifier which
 % allows more complex programs to be loaded, and through extension of the API
@@ -88,23 +90,23 @@ BPF, Linux, packet processing, sockets
 % BPF has its roots in applying filters at the socket layer, the ability to
 % introspect the sockets relating to traffic being filtered has been limited.
 
-To build such awareness into a BPF helper, the verifier needs the ability to
-track the safety of the calls, including appropriate access into socket pointer
-types, and reference counting upon the underlying socket. This paper walks
-through extensions to the verifier to perform tracking of references in a BPF
-program. This allows BPF developers to extend the API with functions that
-allocate and release resources within the execution lifetime of a BPF program,
-and the verifier will validate that the resource acquisition and release is
-balanced across all execution paths of the BPF programs.
+%To build such awareness into a BPF helper, the verifier needs the ability to
+%track the safety of the calls, including appropriate access into socket
+%pointer types, and reference counting upon the underlying socket. This paper
+%walks through extensions to the verifier to perform tracking of references in
+%a BPF program. This allows BPF developers to extend the API with functions
+%that allocate and release resources within the execution lifetime of a BPF
+%program, and the verifier will validate that the resource acquisition and
+%release is balanced across all execution paths of the BPF programs.
 
-Using this new reference tracking ability in the verifier, we add socket lookup
-and release function calls to the BPF API, allowing BPF programs to safely find
-a socket and build logic upon the presence or attributes of a socket. This can
-be used to load-balance traffic based on the presence of a listening
-application, or to implement stateful firewalling primitives to understand
-whether traffic for this connection has been seen before. With this new
-functionality, BPF programs can integrate more closely with the networking
-stack's understanding of the traffic transiting the kernel.
+%Using this new reference tracking ability in the verifier, we add socket lookup
+%and release function calls to the BPF API, allowing BPF programs to safely find
+%a socket and build logic upon the presence or attributes of a socket. This can
+%be used to load-balance traffic based on the presence of a listening
+%application, or to implement stateful firewalling primitives to understand
+%whether traffic for this connection has been seen before. With this new
+%functionality, BPF programs can integrate more closely with the networking
+%stack's understanding of the traffic transiting the kernel.
 
 \todo{Desire to target logic based upon socket existence/attributes at packet
 layers}
