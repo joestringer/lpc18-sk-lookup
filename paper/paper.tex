@@ -102,26 +102,50 @@ resource acquisition (lookup) with release.
 \section{Background}
 
 The BPF verifier must ensure that all BPF programs that are loaded into the
-kernel are safe to execute. When accessing kernel resources, this includes
-providing guarantees around the availability of the underlying resource for the
-duration of the BPF program. For some socket types, such as UDP sockets, or TCP
-listen sockets, this can be achieved with minimal implementation: The
-destruction of such sockets is already governed by standard RCU rules, meaning
-that while the RCU lock is held, they can be safely referenced; Once the RCU
-grace period is reached, the memory may be freed and references to the socket
-are no longer safe to use. Given that BPF programs run under the RCU lock, this
-allows simple, safe access of properties of these sockets without requiring
-additional mechanisms to ensure the safety of the socket pointers.
+kernel are safe to execute. For proposed access into socket types, this
+requires validation that memory accesses within the socket memory are
+appropriate with respect to the bounds of the structure and the norms of
+read/write access, as well as guaranteeing that underlying socket memory
+remains associated with the socket for the duration of accesses from the BPF
+program.
 
-When it comes to TCP sockets that are not governed by RCU, the standard
-refcounting model is used instead. To ensure that the socket remains safe to
-access for a period of BPF program execution, the BPF program must also take a
-reference on the socket. Furthermore, if references must be taken, then they
-also must be released.
+For some socket types, such as UDP sockets, or TCP listen sockets, memory
+access safety can be achieved with minimal implementation: The destruction of
+such sockets is already governed by standard RCU rules, meaning that while the
+RCU lock is held, they can be safely referenced; Once the RCU grace period is
+reached, the memory may be freed and references to the socket are no longer
+safe to use. Because BPF programs run under the RCU lock, this allows simple,
+safe access of properties of these sockets without requiring additional
+mechanisms to ensure the safety of the socket pointers.
 
-\section{Extending the Verifier}
+When it comes to TCP sockets that are not governed by RCU, the networking stack
+uses reference counting to manage socket memory instead. To ensure that the
+socket remains safe to access for a period of BPF program execution, the BPF
+program must also take a reference on the socket. This also implies that such
+references must be subsequently released to prevent leaking kernel resources.
 
 \subsection{Pointers to Sockets}
+
+Earlier work~\cite{bpf-sock} introduced a \verb+bpf_sock+ structure to the BPF
+API and implemented bounds and access type checking, along with offset
+rewriting for converting the access of socket attributes from BPF instructions
+into equivalent accesses of the underlying kernel types. This work was
+introduced with new BPF hook points which provide the socket structure as the
+context of the BPF program.
+
+To allow BPF programs to retrieve and access a socket pointer, the verifier
+must be made aware of when a register contains a pointer of this type, and also
+how to validate pointer access. The existing verifier logic handles context
+pointers in a generic manner via \verb+bpf_verifier_ops+. However, the packet
+event hook points targeted in this paper already contain a context pointer of a
+type that is different from \verb+bpf_sock+, so some additional logic was
+required in the verifier to understand this pointer type. The patch series
+associated with this paper introduced a new pointer type specific to sockets,
+and linked its validation directly to the aforementioned socket verification
+functions without using the verifier operations abstraction.
+
+With the verifier now aware of socket pointer types, this could be built upon
+to implicitly associate socket pointers with references to kernel resources.
 
 \subsection{Reference tracking}
 
