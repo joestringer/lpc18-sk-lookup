@@ -5,12 +5,17 @@ SLIDES=$(TITLE)-slides.pdf
 all: $(PAPER) $(SLIDES)
 
 $(PAPER):
-	make -C paper/
+	$(MAKE) -C paper/
 	mv paper/paper.pdf $(PAPER)
 
+paper: $(PAPER)
+
 $(SLIDES):
-	make -C slides/
+	$(MAKE) -C slides/
 	mv slides/slides.pdf $(SLIDES)
+
+slides:
+	$(MAKE) $(SLIDES)
 
 open-paper: $(PAPER)
 	xdg-open $(PAPER)
@@ -21,7 +26,7 @@ open-slides: $(SLIDES)
 open: open-paper open-slides
 
 clean:
-	make -C paper clean
-	make -C slides clean
+	$(MAKE) -C paper clean
+	$(MAKE) -C slides clean
 
-.PHONY: $(PAPER) $(SLIDES)
+.PHONY: all $(PAPER) paper $(SLIDES) slides open open-paper open-slides clean
