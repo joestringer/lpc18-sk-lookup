@@ -283,12 +283,13 @@ provide the tuple for lookup.
 \subsubsection{Extensibility.}
 
 New kernel APIs that have any scope for extension should contain a flags
-argument. For the socket lookup helpers, a few ideas had been considered as
-potential future alternatives to the existing behaviour. The lookup functions
-follow the standard socket lookup paths in Linux which have predetermined
-methods for selecting a socket when the application uses \verb+SO_REUSEPORT+.
-Some subsequent discussion on the mailinglist proposed allowing BPF program
-writers to influence the socket selection mechanism~\cite{netdev-sk-select}.
+argument~\cite{syscall-flags}. For the socket lookup helpers, a few ideas had
+been considered as a potential future alternatives to the existing behaviour.
+The lookup functions follow the standard socket lookup paths in Linux which
+have predetermined methods for selecting a socket when the application uses
+\verb+SO_REUSEPORT+. Some subsequent discussion on the mailinglist proposed
+allowing BPF program writers to influence the socket selection
+mechanism~\cite{netdev-sk-select}.
 
 \subsubsection{Result.}
 
