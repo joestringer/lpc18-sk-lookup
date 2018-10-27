@@ -8,4 +8,6 @@
 *.blg
 *.ps
 *.dvi
+*.swp
+*.swo
 */*.pdf
