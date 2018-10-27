@@ -29,12 +29,54 @@
 
 \begin{abstract}
 
-Over the past several years, BPF has steadily become more powerful in
-multiple ways: Through building more intelligence into the verifier which
-allows more complex programs to be loaded, and through extension of the API
-such as by adding new map types and new native BPF function calls. While
-BPF has its roots in applying filters at the socket layer, the ability to
-introspect the sockets relating to traffic being filtered has been limited.
+    Over the past several years, BPF has steadily become more powerful in
+    multiple ways: Through building more intelligence into the verifier which
+    allows more complex programs to be loaded, and through extension of the API
+    such as by adding new map types and new native BPF function calls. While
+    BPF has its roots in applying filters at the socket layer, the ability to
+    introspect the sockets relating to traffic being filtered has been limited.
+
+    This paper presents the changes necessary to extend socket introspection
+    capabilities of the Linux kernel's BPF packet hooks. To provide safety
+    guarantees around the access of the socket, the verifier was extended to
+    track allocation and release of kernel resources. Using this mechanism, we
+    introduce socket lookup and release helpers into the BPF API.
+
+    %To provide access to socket state from a BPF helper call, the verifier
+    %needs the ability to track the safety of the calls, including appropriate
+    %reference counting upon the underlying socket for the duration of the
+    %access.
+
+    %With such an ability ability in the verifier, we add socket lookup and
+    %release function calls to the BPF API, allowing BPF programs to safely find
+    %a socket and build logic upon the presence or attributes of a socket.
+    %Applications for this functionality range from load-balancing traffic based
+    %on the presence of a listening application to building stateful firewalling
+    %primitives to understand whether traffic for this connection has been seen
+    %before. With this new functionality, BPF programs can integrate more
+    %closely with the networking stack's understanding of the traffic transiting
+    %the kernel.
+
+    %provide safe access to sockets from BPF packet handling hooks. The BPF verifier
+    %is extended to gain understanding of reference-counted pointer types, which
+    %allows BPF code paths to 
+
+\end{abstract}
+
+\maketitle
+
+\section{Keywords}
+
+BPF, Linux, packet processing, sockets
+
+\section{Introduction}
+
+% Over the past several years, BPF has steadily become more powerful in
+% multiple ways: Through building more intelligence into the verifier which
+% allows more complex programs to be loaded, and through extension of the API
+% such as by adding new map types and new native BPF function calls. While
+% BPF has its roots in applying filters at the socket layer, the ability to
+% introspect the sockets relating to traffic being filtered has been limited.
 
 To build such awareness into a BPF helper, the verifier needs the ability to
 track the safety of the calls, including appropriate reference counting upon
@@ -53,18 +95,87 @@ whether traffic for this connection has been seen before. With this new
 functionality, BPF programs can integrate more closely with the networking
 stack's understanding of the traffic transiting the kernel.
 
-\end{abstract}
+This safety is provided by tracking pointer values through each conditional
+path in the program, and rejecting the load of programs that fail to "balance"
+resource acquisition (lookup) with release.
 
-\maketitle
+\section{Background}
 
-\section{Keywords}
+The BPF verifier must ensure that all BPF programs that are loaded into the
+kernel are safe to execute. When accessing kernel resources, this includes
+providing guarantees around the availability of the underlying resource for the
+duration of the BPF program. For some socket types, such as UDP sockets, or TCP
+listen sockets, this can be achieved with minimal implementation: The
+destruction of such sockets is already governed by standard RCU rules, meaning
+that while the RCU lock is held, they can be safely referenced; Once the RCU
+grace period is reached, the memory may be freed and references to the socket
+are no longer safe to use. Given that BPF programs run under the RCU lock, this
+allows simple, safe access of properties of these sockets without requiring
+additional mechanisms to ensure the safety of the socket pointers.
 
-BPF, Linux, packet processing, sockets
+When it comes to TCP sockets that are not governed by RCU, the standard
+refcounting model is used instead. To ensure that the socket remains safe to
+access for a period of BPF program execution, the BPF program must also take a
+reference on the socket. Furthermore, if references must be taken, then they
+also must be released.
 
-\section{Introduction}
+\section{Extending the Verifier}
+
+\subsection{Pointers to Sockets}
+
+\subsection{Reference tracking}
+
+Alternatives:
+\begin{itemize}
+\item RCU-protect other socket types
+\item Collect references during program execution and release afterwards
+\item Build acquire/release semantics into the API
+\end{itemize}
+
+Collecting references and releasing afterwards has the unfortunate overhead
+that even the execution of BPF programs that do not make use of the new socket
+lookup helpers would need to pay the cost of checking the list of references
+to free. When dealing with sufficiently demanding use cases such as those which
+use XDP, even the few instructions required to implement such a check may have
+a measurable impact on performance.
+
+Calls to helper functions which acquire references to resources are annotated
+in the verifier to associate the acquisition and release functions. When the
+instruction that acquires a resource is processed, the verifier state is
+updated to include a resource identifier for the resulting value, and the
+register's value is associated with this identifier. When processing a
+corresponding release helper call, if a parameter to the function contains a
+resource identifier, then the corresponding identifire is removed from the
+verifier state. If any paths in the program reach the final (\verb+BPF_EXIT+)
+instruction and the verifier state still contains resource identifiers, then
+the program is considered unsafe as it has leaked the resource.
+
+\subsection{Runtime protection}
+
+\todo{LD\_ABS, LD\_IND}
+
+\section{Extending the BPF API}
+
+
+
+\section{Use cases}
+
+\subsection{Stateful Firewalling}
+
+\subsection{Load-balancing}
+
+\section{Conclusion}
+
+This paper describes the contribution of two extensions to the Linux kernel BPF
+implementation, firstly the introduction of reference tracking logic into the
+verifier, which provides useful base infrastructure for supporting acquire and
+release semantics for kernel resources, and secondly the socket lookup API
+which may be now used from packet paths to allow BPF writers to build logic
+based upon introspection of kernel sockets.
 
 \section{Acknowledgments}
 
+The core BPF maintainers for their guidance and review of the patches.
 
 \bibliographystyle{plainnat}
 \bibliography{paper}
