@@ -351,11 +351,13 @@ these onto the stack.
 
 \subsection{Future work}
 
-The implementation intruduced in the 4.20 release cycle includes support for
+The implementation introduced in the 4.20 release cycle includes support for
 looking up TCP and UDP sockets for IPv4 and IPv6 traffic, using the
 \verb+SCHED_CLS+, \verb+SCHED_ACT+ and \verb+SK_SKB+ hook points. A proposed
 patchset extends this to allow the same helpers to be used from the \verb+XDP+
 hook points~\cite{sk-lookup-xdp}.
+
+\todo{Associate custom metadata with socket?}
 
 \section{Use cases}
 
@@ -365,16 +367,20 @@ hook points~\cite{sk-lookup-xdp}.
 
 \section{Conclusion}
 
-This paper describes the contribution of two extensions to the Linux kernel BPF
-implementation, firstly the introduction of reference tracking logic into the
-verifier, which provides useful base infrastructure for supporting acquire and
-release semantics for kernel resources, and secondly the socket lookup API
-which may be now used from packet paths to allow BPF writers to build logic
-based upon introspection of kernel sockets.
+This paper describes the contribution of new BPF verifier functionality in the
+Linux kernel to track references to kernel resources and uses these to provide
+access to socket introspection capabilities from packet handling hooks. The
+introduction of reference tracking logic into the verifier provides
+useful base infrastructure for supporting acquire and release semantics for
+kernel resources which may prove useful for other helpers in future, and the
+socket lookup API makes the packet hooks more powerful to support use cases
+such as stateful firewalling or load-balancing based on the sockets that are
+open on a system.
 
 \section{Acknowledgments}
 
-The core BPF maintainers for their guidance and review of the patches.
+The core BPF maintainers provided great guidance and review of the patches, in
+particular Alexei Starovoitov, Daniel Borkmann and Martin KaFai Lau.
 
 \bibliographystyle{plainnat}
 \bibliography{paper}
