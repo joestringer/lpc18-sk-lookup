@@ -330,6 +330,17 @@ hook points~\cite{sk-lookup-xdp}.
 
 \subsection{Stateful Firewalling}
 
+Stateful firewalling is distinguished from stateless firewalling in that it
+provides the ability to associate two directions of a connection together and
+apply a filtering policy based upon the direction of the connection. This
+commonly involves using a connection tracker to reconstruct the connection
+state of each endpoint of the connection without specific knowledge from those
+endpoints~\cite{ovs-ct,conntrack}. In cases where the Linux stack acts as a
+firewall on a node in the network that is separate from both endpoints, In many
+cases this model is used when filtering traffic where one endpoint is colocated
+with the Linux stack that performs the firewalling, which already contains
+information about the local end of the connection in a slightly.
+
 \subsection{Load-balancing}
 
 \section{Conclusion}
