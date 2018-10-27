@@ -4,6 +4,7 @@ TEXFILES = ${TITLE}.tex
 FIGURES =
 GRAPHS =
 BIB = ${TITLE}.bib
+INCLUDES = sk-lookup-api.c sk-lookup-structures.c
 
 GENERATED_EXTS= .aux .log .nav .out .snm .toc .bbl .blg .ps .dvi
 

@@ -24,8 +24,12 @@
 
 \usepackage{xcolor}
 \newcommand\todo[1]{\textcolor{red}{#1}}
+
 \begin{filecontents*}{sk-lookup-api.c}
 \import{sk-lookup-api.c}
+\end{filecontents*}
+\begin{filecontents*}{sk-lookup-structures.c}
+\import{sk-lookup-structures.c}
 \end{filecontents*}
 
 \begin{document}
@@ -204,7 +208,8 @@ considerations for each of these.
 
 The following considerations were made for implementing the lookup helpers. The
 consideration of each of these items reflects the definition of the lookup
-helpers in Listing~\ref{lst:helper-api}.
+helpers in Listing~\ref{lst:helper-api} and the structure definitions in
+Listing~\ref{lst:helper-struct}.
 
 \begin{itemize}
     \item The Linux stack may contain multiple network namespaces, where the
@@ -216,11 +221,17 @@ helpers in Listing~\ref{lst:helper-api}.
           there may be a desire to extend this in future.
 \end{itemize}
 
-\lstinputlisting[float=*t,%
+\lstinputlisting[float=*b,%
   caption={BPF API helper functions for socket lookup},%
   language=c,%
   label=lst:helper-api,%
   breaklines=true]{sk-lookup-api.c}
+
+\lstinputlisting[float=*b,%
+  caption={BPF API structures for socket lookup (Linux v4.20)},%
+  language=c,%
+  label=lst:helper-struct,%
+  breaklines=true]{sk-lookup-structures.c}
 
 \subsubsection{Namespacing.}
 
