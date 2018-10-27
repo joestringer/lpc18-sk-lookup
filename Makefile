@@ -1,5 +1,5 @@
-TITLE=
-PAPER=$(TITLE)paper.pdf
+TITLE=lpc18-sk-lookup
+PAPER=$(TITLE).pdf
 
 all: $(PAPER)
 

@@ -1,30 +1,11 @@
-\documentclass[10pt,sigconf,authorversion]{lpc}
-\usepackage{balance}
-\usepackage{courier}
-\usepackage{helvet}
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage{listings}
-\usepackage{times}
-\usepackage{xcolor}
+# Building socket-aware BPF programs
 
-\pdfinfo{
-/Title (Building socket-aware BPF programs)
-/Author (Joe Stringer)}
+[In Proceedings](https://linuxplumbersconf.org/event/2/contributions/94/) of
+[Linux Plumbers Conference 2018](https://linuxplumbersconf.org/), Vancouver, BC.
 
-\title{Building socket-aware BPF programs}
-\author{Joe Stringer}
-\affiliation{%
-      \institution{Cilium.io}}
-\email{joe@cilium.io}
+[Full PDF](https://github.com/joestringer/lpc18-sk-lookup/blob/master/lpc18-sk-lookup.pdf)
 
-\acmDOI{}
-\setcounter{secnumdepth}{0}
-\setcopyright{none}
-
-\begin{document}
-
-\begin{abstract}
+## Abstract
 
 Over the past several years, BPF has steadily become more powerful in
 multiple ways: Through building more intelligence into the verifier which
@@ -50,20 +31,3 @@ whether traffic for this connection has been seen before. With this new
 functionality, BPF programs can integrate more closely with the networking
 stack's understanding of the traffic transiting the kernel.
 
-\end{abstract}
-
-\maketitle
-
-\section{Keywords}
-
-BPF, Linux, packet processing, sockets
-
-\section{Introduction}
-
-\section{Acknowledgments}
-
-
-\bibliographystyle{plainnat}
-\bibliography{paper}
-
-\end{document}
