@@ -38,9 +38,12 @@
 
     This paper presents the changes necessary to extend socket introspection
     capabilities of the Linux kernel's BPF packet hooks. To provide safety
-    guarantees around the access of the socket, the verifier was extended to
+    guarantees around the access of the socket, the verifier is extended to
     track allocation and release of kernel resources. Using this mechanism, we
     introduce socket lookup and release helpers into the BPF API.
+
+    %These new primitives open up new possibilities for various use cases
+    %including stateful firewalling and load balancing.
 
     %To provide access to socket state from a BPF helper call, the verifier
     %needs the ability to track the safety of the calls, including appropriate
@@ -71,6 +74,13 @@ BPF, Linux, packet processing, sockets
 
 \section{Introduction}
 
+\begin{itemize}
+\item BPF started with sockets, but only provided access to packets
+\item Previous helper extensions allowed e.g. socket operation handling
+\item Arbitrary socket lookup from socket/packet lookups allows more powerful
+      BPF programs
+\end{itemize}
+
 % Over the past several years, BPF has steadily become more powerful in
 % multiple ways: Through building more intelligence into the verifier which
 % allows more complex programs to be loaded, and through extension of the API
@@ -79,12 +89,13 @@ BPF, Linux, packet processing, sockets
 % introspect the sockets relating to traffic being filtered has been limited.
 
 To build such awareness into a BPF helper, the verifier needs the ability to
-track the safety of the calls, including appropriate reference counting upon
-the underlying socket. This talk walks through extensions to the verifier to
-perform tracking of references in a BPF program. This allows BPF developers to
-extend the UAPI with functions that allocate and release resources within the
-execution lifetime of a BPF program, and the verifier will validate that the
-resources are released exactly once prior to program completion.
+track the safety of the calls, including appropriate access into socket pointer
+types, and reference counting upon the underlying socket. This paper walks
+through extensions to the verifier to perform tracking of references in a BPF
+program. This allows BPF developers to extend the API with functions that
+allocate and release resources within the execution lifetime of a BPF program,
+and the verifier will validate that the resource acquisition and release is
+balanced across all execution paths of the BPF programs.
 
 Using this new reference tracking ability in the verifier, we add socket lookup
 and release function calls to the BPF API, allowing BPF programs to safely find
