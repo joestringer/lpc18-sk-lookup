@@ -24,7 +24,7 @@
 
 \usepackage{xcolor}
 \newcommand\todo[1]{\textcolor{red}{#1}}
-\newcommand\linuxversion{v4.20}
+\newcommand\linuxversion{{v4.20}}
 
 \begin{filecontents*}{../sk-lookup-api.h}
 \import{../sk-lookup-api.h}
@@ -68,18 +68,43 @@
 
 \section{Keywords}
 
-BPF, Linux, packet processing, sockets
+BPF, firewalls, Linux, networks, packet processing, sockets
 
 \section{Introduction}
 
-\begin{itemize}
-\item BPF started with sockets, but only provided access to packets
-\item Previous helper extensions allowed e.g. socket operation handling
-\item Arbitrary socket lookup from socket/packet hooks allows more powerful BPF
-      programs
-\item Use cases revolve around building logic in socket/packet layer hooks that
-      change the behaviour based on the existence and attributes of a socket.
-\end{itemize}
+The Berkeley Packet Filter~\cite{cbpf}, introduced in 1992, provided a model
+for the implementation of flexible packet filtering by allowing runtime
+modification of kernel logic from userspace applications. BPF quickly became
+the de facto technology for monitoring the traffic flow within POSIX systems.
+Originally, this was restricted to applying filtering upon sockets attached to
+devices and not to implement filtering capabilities directly for traffic
+flowing through a system. Subsequent work investigated using BPF as a basis for
+packet filtering on devices~\cite{ipfw}, however this design does not appear to
+have been integrated into major operating systems until the introduction of
+extended BPF into Linux~\cite{lwnebpf}.
+
+In recent years, multiple efforts have been made to build new filtering
+implementations based upon
+BPF~\cite{cilium,ovs-ebpf,nsx-harmony,droplet,xdp-ddos,alfwrapper}. Many of
+these implementations aim to provide the functionality of a stateful
+firewall~\cite{stateful-fw} - that is, to allow network policies to be defined
+to allow traffic from one network endpoint to talk to another network endpoint,
+and to implicitly allow responses to pass back through the firewall. Many
+implementations over the past decade have developed this functionality in a
+manner that is agnostic to the locality of the endpoints. This paper revisits
+the possibilities for stateful firewalling when the endpoint socket is
+co-located with the kernel providing firewalling functionality, effectively
+combining the ideas of \cite{ipfw,stateful-fw,dfw}.
+
+This paper is laid out as follows. Firstly, we discuss the constraints that the
+BPF verifier places upon BPF programs and how those constraints translate into
+requirements on the implementation of socket lookup helpers in the Linux BPF
+API. The implementation of reference tracking functionality is presented.
+Secondly, we describe extensions to the BPF API to provide socket introspection
+capabilities, taking into account flexibility and performance. Thirdly, we
+present some use cases for the new functionality, including more detail on the
+stateful firewall case and a description of the use of the new functionality
+for load-balancing. Finally, we conclude and assess the position of this work.
 
 \section{Extending the Verifier}
 
@@ -347,8 +372,8 @@ copy of the tuple.
 
 \subsection{Future work}
 
-The implementation introduced in the 4.20 release cycle includes support for
-looking up TCP and UDP sockets for IPv4 and IPv6 traffic, using the
+The implementation introduced in the Linux~\linuxversion~release cycle includes
+support for looking up TCP and UDP sockets for IPv4 and IPv6 traffic, using the
 \verb+SCHED_CLS+, \verb+SCHED_ACT+ and \verb+SK_SKB+ hook points. A proposed
 patchset extends this to allow the same helpers to be used from the \verb+XDP+
 hook points~\cite{sk-lookup-xdp}.
@@ -385,6 +410,10 @@ the Linux stack on a network device.
 
 \subsection{Load-balancing}
 
+\todo{Early in the stack, figure out whether the traffic is destined for a
+local process and if so, pass. Otherwise, perform load-balancing to another
+node where the traffic is destined for.}
+
 \section{Conclusion}
 
 This paper describes the contribution of new BPF verifier functionality in the
@@ -399,9 +428,9 @@ open on a system.
 
 \section{Acknowledgments}
 
-The core BPF maintainers provided great guidance and review of the patches, in
-particular Alexei Starovoitov, Daniel Borkmann and Martin KaFai Lau. Additional
-shout-out to Nitin Hande who provided testing and feedback.
+The author would like to acknowledge Alexei Starovoitov, Daniel Borkmann,
+Martin KaFai Lau, Nitin Hande and Thomas Graf for guidance, review and testing
+of the patches.
 
 \bibliographystyle{plainnat}
 \bibliography{paper}
