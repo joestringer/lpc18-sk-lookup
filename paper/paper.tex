@@ -25,11 +25,11 @@
 \usepackage{xcolor}
 \newcommand\todo[1]{\textcolor{red}{#1}}
 
-\begin{filecontents*}{sk-lookup-api.c}
-\import{sk-lookup-api.c}
+\begin{filecontents*}{../sk-lookup-api.h}
+\import{../sk-lookup-api.h}
 \end{filecontents*}
-\begin{filecontents*}{sk-lookup-structures.c}
-\import{sk-lookup-structures.c}
+\begin{filecontents*}{sk-lookup-structures.h}
+\import{sk-lookup-structures.h}
 \end{filecontents*}
 
 \begin{document}
@@ -233,13 +233,13 @@ Listing~\ref{lst:helper-struct}.
   caption={BPF API helper functions for socket lookup},%
   language=c,%
   label=lst:helper-api,%
-  breaklines=true]{sk-lookup-api.c}
+  breaklines=true]{../sk-lookup-api.h}
 
 \lstinputlisting[float=*b,%
   caption={BPF API structures for socket lookup (Linux v4.20)},%
   language=c,%
   label=lst:helper-struct,%
-  breaklines=true]{sk-lookup-structures.c}
+  breaklines=true]{sk-lookup-structures.h}
 
 \subsubsection{Namespacing.}
 
