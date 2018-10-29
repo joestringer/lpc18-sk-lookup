@@ -4,6 +4,7 @@
 [Linux Plumbers Conference 2018](https://linuxplumbersconf.org/), Vancouver, BC.
 
 [Full PDF](https://github.com/joestringer/lpc18-sk-lookup/blob/master/lpc18-sk-lookup.pdf)
+[Slides PDF](https://github.com/joestringer/lpc18-sk-lookup/blob/master/lpc18-sk-lookup-slides.pdf)
 
 ## Abstract
 
