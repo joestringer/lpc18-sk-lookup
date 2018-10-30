@@ -389,24 +389,29 @@ provides the ability to associate two directions of a connection together and
 apply a filtering policy based upon the direction of the connection. This
 commonly involves using a connection tracker to reconstruct the connection
 state of each endpoint of the connection without specific knowledge from those
-endpoints~\cite{conntrack,ovs-ct}. In cases where Linux is configured as a
-firewall between applications that exist in distinct Linux kernel copies
-running in the network, this makes sense; The information that is needed to
-perform stateful firewalling is not present on the Linux instance that needs
-this information, so the information must either be shared from the peers
-(assuming that the firewall orchestrator has control over the peer endpoints),
-or this information must be synthesised based upon the packets that are seen on
-this intermediate Linux instance. However, in many cases this model is used
-when filtering traffic where one endpoint is co-located with the Linux stack
-that performs the firewalling, which already contains information about the
-local end of the connection. In this use case, the connection tracking table
-effectively duplicates knowledge that Linux already creates and maintains.
+endpoints~\cite{conntrack,ovs-ct}.
+
+In cases where Linux is configured as a firewall between applications that
+exist in distinct Linux kernel copies running in the network, this makes sense;
+The information that is needed to perform stateful firewalling is not present
+on the Linux instance that needs this information, so the information must
+either be shared from the peers (assuming that the firewall orchestrator has
+control over the peer endpoints), or this information must be synthesised based
+upon the packets that are seen on this intermediate Linux instance. However, in
+many cases this model is used when filtering traffic where one endpoint is
+co-located with the Linux stack that performs the firewalling, which already
+contains information about the local end of the connection. In this use case,
+the connection tracking table effectively duplicates knowledge that Linux
+already creates and maintains.
 
 Using the socket lookup functions described in this paper, in conjunction with
 the socket properties including local Layer~3 and Layer~4 information available
 in the \verb+bpf_sock+ (Listing~\ref{lst:helper-struct}), BPF programs can
 identify the directionality of connections for packets ingressing or egressing
-the Linux stack on a network device.
+the Linux stack on a network device. Between this directionality information
+and a network policy provided by a userspace program, BPF programs are able to
+identify locally-sourced or locally-destined traffic and allow or deny traffic
+ingressing or egressing the Linux stack.
 
 \subsection{Load-balancing}
 
@@ -425,6 +430,8 @@ kernel resources which may prove useful for other helpers in future, and the
 socket lookup API makes the packet hooks more powerful to support use cases
 such as stateful firewalling or load-balancing based on the sockets that are
 open on a system.
+
+%\todo{Associate custom metadata with socket?}
 
 \section{Acknowledgments}
 
