@@ -103,8 +103,9 @@ API. The implementation of reference tracking functionality is presented.
 Secondly, we describe extensions to the BPF API to provide socket introspection
 capabilities, taking into account flexibility and performance. Thirdly, we
 present some use cases for the new functionality, including more detail on the
-stateful firewall case and a description of the use of the new functionality
-for load-balancing. Finally, we conclude and assess the position of this work.
+stateful firewall case and an additional usage in handling management traffic
+in forwarding devices. Finally, we conclude and assess the position of this
+work.
 
 \section{Extending the Verifier}
 
@@ -378,7 +379,7 @@ support for looking up TCP and UDP sockets for IPv4 and IPv6 traffic, using the
 patchset extends this to allow the same helpers to be used from the \verb+XDP+
 hook points~\cite{sk-lookup-xdp}.
 
-\todo{Associate custom metadata with socket?}
+%\todo{Associate custom metadata with socket?}
 
 \section{Use cases}
 
@@ -413,11 +414,26 @@ and a network policy provided by a userspace program, BPF programs are able to
 identify locally-sourced or locally-destined traffic and allow or deny traffic
 ingressing or egressing the Linux stack.
 
-\subsection{Load-balancing}
+\subsection{Filtering management traffic in forwarding devices}
 
-\todo{Early in the stack, figure out whether the traffic is destined for a
-local process and if so, pass. Otherwise, perform load-balancing to another
-node where the traffic is destined for.}
+A common design of devices providing routing and forwarding functionality is to
+place high-bandwidth forwarding elements into a system with a low-bandwidth
+CPU. In many cases, the goal of the CPU is to only to handle control traffic
+for configuring the forwarding path, which is a fraction of the traffic handled
+by the actual forwarding path. Existing implementations may direct only traffic
+for a specific IP into the management CPU, or could plausibly use XDP to
+configure DoS filters so that only legitimate traffic is forwarded up the
+stack. Such implementations may not provide the degree of restriction on
+locally destined traffic that is desired, or may require additional
+co-ordination with the socket layer that requires significant orchestration.
+
+Using the upcoming XDP support for socket lookup, early in the driver level of
+the Linux stack the traffic could be compared with the socket table and only
+passed up the stack if the traffic corresponds to a local application. As this
+functionality uses the socket table directly, it is always kept in sync with
+the current applications without additional orchestration of BPF maps. Traffic
+which is not intended to be handled locally can then be either handled by
+additional BPF logic programmed in the XDP hook.
 
 \section{Conclusion}
 
