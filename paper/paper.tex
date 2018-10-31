@@ -114,19 +114,21 @@ work.
 %to read or write.
 
 The BPF verifier must ensure that all BPF programs that are loaded into the
-kernel are safe to execute. For accessing socket pointers, this requires
-validation that memory accesses are within the bounds of the memory allocated
-for the structure, and will not make any modifications to the socket fields
-that would be incompatible with the core socket handling logic. This is
-provided through extension of existing functionality which performs bounds
-verification and offset conversion for programs operating on CGroups hooks.
-Additionally, the underlying memory must remain associated with the socket for
-the duration of accesses from the BPF program, which may be guaranteed by
-taking a reference on sockets for the duration of their use. The following
-sections explain how this is implemented through the introduction of a new
-pointer type in the verifier, and through the extension of the verifier to
-recognise assembly instructions that represent reference acquisition and
-release.
+kernel are safe to execute. This necessitates verification of every path
+through the program to ensure constraint such as that the program will halt,
+and that any dereferencing of pointers is done in a safe and controlled manner.
+For accessing socket pointers, this requires validation that memory accesses
+are within the bounds of the memory allocated for the structure, and that no
+modifications are made to the socket fields that would be cause the core socket
+handling logic to get into a bad state. This is provided through extension of
+existing functionality which performs bounds verification and offset conversion
+for programs operating on CGroups hooks. Additionally, the underlying memory
+must remain associated with the socket for the duration of accesses from the
+BPF program, which may be guaranteed by taking a reference on sockets for the
+duration of their use. The following sections explain how this is implemented
+through the introduction of a new pointer type in the verifier, and through the
+extension of the verifier to recognise assembly instructions that represent
+reference acquisition and release.
 
 \subsection{Pointers to Sockets}
 
