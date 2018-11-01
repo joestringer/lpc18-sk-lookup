@@ -56,11 +56,12 @@
     Using this new reference tracking ability in the verifier, we add socket
     lookup and release function calls to the BPF API, allowing BPF programs to
     safely find a socket and build logic upon the presence or attributes of a
-    socket. This can be used to load-balance traffic based on the presence of a
-    listening application, or to implement stateful firewalling primitives to
-    understand whether traffic for this connection has been seen before. With
-    this new functionality, BPF programs can integrate more closely with the
-    networking stack's understanding of the traffic transiting the kernel.
+    socket. This can be used to conditionally redirect traffic based on the
+    presence of a listening application, or to implement stateful firewalling
+    primitives to understand whether traffic for this connection has been seen
+    before. With this new functionality, BPF programs can integrate more
+    closely with the networking stack's understanding of the traffic transiting
+    the kernel.
 
 \end{abstract}
 
@@ -142,14 +143,19 @@ context of the BPF program.
 To allow BPF programs to retrieve and access a socket pointer, the verifier
 must be made aware of when a register contains a pointer of this type, and also
 how to validate pointer access. The existing verifier logic handles context
-pointers in a generic manner via \verb+bpf_verifier_ops+. However, the packet
-event hook points targeted in this paper already contain a context pointer of a
-type that is different from \verb+bpf_sock+, so some additional logic was
-required in the verifier to understand this pointer type. The patch series
-associated with this paper introduced a new pointer type specific to sockets,
-and linked its validation directly to the aforementioned socket verification
-functions without using the verifier operations abstraction. Write operations
-into the socket are rejected in the current implementation.
+pointers in a generic manner via \verb+bpf_verifier_ops+. The core of the
+verifier is not aware of specifice pointer types that are used as the context
+for the program, only how to verify the pointer access for these types.
+However, the packet event hook points targeted in this paper already contain a
+context pointer of a type that is different from \verb+bpf_sock+, so some
+additional logic was required in the verifier to understand this pointer type.
+The patch series associated with this paper introduced a new pointer type
+specific to sockets, and linked its validation directly to the aforementioned
+socket verification functions without using the verifier operations
+abstraction. Write operations into the socket are rejected in the current
+implementation. If variations in access and access type into the socket is
+desired in future based upon the hook point, then it may make sense to
+introduce a similar abstraction for the socket type.
 
 With the verifier now aware of socket pointer types, this could be built upon
 to implicitly associate socket pointers with references to kernel resources.
@@ -217,22 +223,21 @@ which would otherwise leak the pointer reference to a subsequent BPF program.
 \subsection{Runtime protection}
 
 The verifier is tasked with ensuring that all BPF program execution flow is
-safe to the extents where it interacts with the BPF API. In general, BPF
-programs, once verified and triggered by event hooks, will execute from the
+safe to the extents where it interacts with the BPF API. In general BPF
+programs---once verified and triggered by event hooks---will execute from the
 first instruction through the final instruction for a particular path through
-the program. Therefore, after execution of a BPF program containing resource
-acquire and release functions which are verified by the logic above, references
-to those resources should not leak.
+the program. Therefore, references to those resources should not leak if the
+program has been verified.
 
 One exception to this is when classic BPF \verb+LD_ABS+ or \verb+LD_IND+
 instructions are used in the BPF program. These instructions were previously
 used to provide direct packet access, with the semantics that if the access
 offset exceeds the length of the packet, the BPF program would be terminated
-prior to the final state. Without mitigation, this could lead to leaking of
-references at runtime, even if the instructions appear to balance acquisition
-and release at verification time. Newer BPF APIs provide better alternatives to
-these instructions for packet access, so we disallow the use of these
-instructions while holding a socket reference.
+prior to reaching the final state. Without mitigation, this could lead to
+leaking of references at runtime, even if the instructions appear to balance
+acquisition and release at verification time. Newer BPF APIs provide better
+alternatives to these instructions for packet access, so we disallow the use of
+these instructions while holding a socket reference.
 
 \section{Extending the BPF API}
 
@@ -327,13 +332,15 @@ TCP or UDP. The initial RFC of this patch series proposed a single lookup
 function which would choose the Layer~4 protocol based upon a field in the
 tuple~\cite{sk-lookup-rfc}, however this would make it more difficult for BPF
 program writers to detect the support for different protocol types at compile
-time. When a socket type is unsupported, the implementation would return
-\verb+NULL+, implying that there is no such socket. There is not a significant
-number of supported Layer~4 socket types in the Linux stack today, and the
-number is not expected to increase drastically, so it was considered simpler
-and easier to split out each Layer~4 socket lookup function into an independent
-helper call, so that the result could simply return a socket or \verb+NULL+ and
-not need to encode a representation of other error conditions.
+time. When a socket type is unsupported, the initial implementation would
+return \verb+NULL+ at runtime, implying that there is no such socket. There is
+not a significant number of supported Layer~4 socket types in the Linux stack
+today, and the number is not expected to increase drastically, so it was
+considered simpler and easier to split out each Layer~4 socket lookup function
+into an independent helper call, so that the result could simply return a
+socket or \verb+NULL+ and not need to encode a representation of other error
+conditions. This simplifies not only the API, but also the verifier
+implementation that must understand the return type of the helper functions.
 
 \subsection{Optimizations}
 
@@ -360,8 +367,8 @@ The API retains explicit reference tracking to ensure consistency of the API
 and to allow multiple underlying implementations to handle reference tracking
 in a way that is safe for the implementation. For instance, for  TCP sockets
 that are not governed by RCU, the networking stack uses reference counting to
-manage socket memory instead, so the socket lookup and release functions would
-take and release references on the socket, respectively.
+manage socket memory instead, so the socket lookup and release function
+implementations must take and release references on the socket, respectively.
 
 \subsubsection{Allow lookup using direct packet pointers.}
 
@@ -395,17 +402,17 @@ state of each endpoint of the connection without specific knowledge from those
 endpoints~\cite{conntrack,ovs-ct}.
 
 In cases where Linux is configured as a firewall between applications that
-exist in distinct Linux kernel copies running in the network, this makes sense;
-The information that is needed to perform stateful firewalling is not present
-on the Linux instance that needs this information, so the information must
-either be shared from the peers (assuming that the firewall orchestrator has
-control over the peer endpoints), or this information must be synthesised based
-upon the packets that are seen on this intermediate Linux instance. However, in
-many cases this model is used when filtering traffic where one endpoint is
-co-located with the Linux stack that performs the firewalling, which already
-contains information about the local end of the connection. In this use case,
-the connection tracking table effectively duplicates knowledge that Linux
-already creates and maintains.
+exist in distinct Linux kernel copies running in the network, this is
+intuitive. The information that is needed to perform stateful firewalling is
+not present on the Linux instance that needs this information, so to understand
+the state of the peers the information must be ether shared from the peers
+(assuming that the firewall orchestrator has control over the peer endpoints),
+or this information must be synthesised based upon the packets that are seen on
+this intermediate Linux instance. However, in many cases this model is used
+when filtering traffic where one peer is co-located with the Linux stack that
+performs the firewalling, which already contains information about the local
+end of the connection. In this use case, the connection tracking table
+effectively duplicates knowledge that Linux already creates and maintains.
 
 Using the socket lookup functions described in this paper, in conjunction with
 the socket properties including local Layer~3 and Layer~4 information available
@@ -416,7 +423,7 @@ and a network policy provided by a userspace program, BPF programs are able to
 identify locally-sourced or locally-destined traffic and allow or deny traffic
 ingressing or egressing the Linux stack.
 
-\subsection{Filtering management traffic in forwarding devices}
+\subsection{Conditional forwarding of management traffic in forwarding devices}
 
 A common design of devices providing routing and forwarding functionality is to
 place high-bandwidth forwarding elements into a system with a low-bandwidth
@@ -434,8 +441,8 @@ the Linux stack the traffic could be compared with the socket table and only
 passed up the stack if the traffic corresponds to a local application. As this
 functionality uses the socket table directly, it is always kept in sync with
 the current applications without additional orchestration of BPF maps. Traffic
-which is not intended to be handled locally can then be either handled by
-additional BPF logic programmed in the XDP hook.
+which is not intended to be handled locally can then be handled by additional
+BPF logic programmed in the XDP hook.
 
 \section{Conclusion}
 
@@ -446,8 +453,8 @@ introduction of reference tracking logic into the verifier provides
 useful base infrastructure for supporting acquire and release semantics for
 kernel resources which may prove useful for other helpers in future, and the
 socket lookup API makes the packet hooks more powerful to support use cases
-such as stateful firewalling or load-balancing based on the sockets that are
-open on a system.
+such as stateful firewalling or conditional redirect based on the sockets that
+are open on a system.
 
 %\todo{Associate custom metadata with socket?}
 
