@@ -44,11 +44,11 @@
     BPF has its roots in applying filters at the socket layer, the ability to
     introspect the sockets relating to traffic being filtered has been limited.
 
-    To build such awareness into a BPF helper, the verifier needs the ability
-    to track the safety of the calls, including appropriate reference counting
-    upon the underlying socket. This paper describes extensions to the verifier
-    to perform tracking of references in a BPF program. This allows BPF
-    developers to extend the UAPI with functions that allocate and release
+    To build socket introspection into a BPF helper, the verifier needs the
+    ability to track the safety of the calls, including appropriate reference
+    counting upon the underlying socket. This paper describes extensions to the
+    verifier to perform tracking of references in a BPF program. This allows
+    BPF developers to extend the UAPI with functions that allocate and release
     resources within the execution lifetime of a BPF program, and the verifier
     will validate that the resources are released exactly once prior to program
     completion.
@@ -88,14 +88,16 @@ In recent years, multiple efforts have been made to build new filtering
 implementations based upon
 BPF~\cite{cilium,ovs-ebpf,nsx-harmony,droplet,xdp-ddos,alfwrapper}. Many of
 these implementations aim to provide the functionality of a stateful
-firewall~\cite{stateful-fw} - that is, to allow network policies to be defined
-to allow traffic from one network endpoint to talk to another network endpoint,
-and to implicitly allow responses to pass back through the firewall. Many
+firewall~\cite{stateful-fw} - that is, network policies may be defined to allow
+traffic from one network endpoint to talk to another network endpoint, and to
+implicitly allow responses to pass back through the firewall. Many
 implementations over the past decade have developed this functionality in a
 manner that is agnostic to the locality of the endpoints. This paper revisits
 the possibilities for stateful firewalling when the endpoint socket is
-co-located with the kernel providing firewalling functionality, effectively
-combining the ideas of \cite{ipfw,stateful-fw,dfw}.
+co-located with the kernel providing firewalling functionality, as is the case
+with container workloads. This effectively combines the ideas of a BPF-based
+firewall~\cite{ipfw} with the model of a stateful firewall~\cite{stateful-fw},
+operating with an understanding of socket state~\cite{dfw}.
 
 This paper is laid out as follows. Firstly, we discuss the constraints that the
 BPF verifier places upon BPF programs and how those constraints translate into
@@ -157,8 +159,8 @@ implementation. If variations in access and access type into the socket is
 desired in future based upon the hook point, then it may make sense to
 introduce a similar abstraction for the socket type.
 
-With the verifier now aware of socket pointer types, this could be built upon
-to implicitly associate socket pointers with references to kernel resources.
+With the verifier now aware of socket pointer types, this provides a foundation
+to associate socket pointers with references to kernel resources.
 
 \subsection{Reference tracking}
 
@@ -223,7 +225,7 @@ which would otherwise leak the pointer reference to a subsequent BPF program.
 \subsection{Runtime protection}
 
 The verifier is tasked with ensuring that all BPF program execution flow is
-safe to the extents where it interacts with the BPF API. In general BPF
+safe to the extent where it interacts with the BPF API. In general BPF
 programs---once verified and triggered by event hooks---will execute from the
 first instruction through the final instruction for a particular path through
 the program. Therefore, references to those resources should not leak if the
@@ -405,10 +407,10 @@ In cases where Linux is configured as a firewall between applications that
 exist in distinct Linux kernel copies running in the network, this is
 intuitive. The information that is needed to perform stateful firewalling is
 not present on the Linux instance that needs this information, so to understand
-the state of the peers the information must be ether shared from the peers
+the state of the peers the information must be either shared from the peers
 (assuming that the firewall orchestrator has control over the peer endpoints),
-or this information must be synthesised based upon the packets that are seen on
-this intermediate Linux instance. However, in many cases this model is used
+or this information must be reconstructed based upon the packets that are seen
+on this intermediate Linux instance. However, in many cases this model is used
 when filtering traffic where one peer is co-located with the Linux stack that
 performs the firewalling, which already contains information about the local
 end of the connection. In this use case, the connection tracking table
@@ -430,11 +432,12 @@ place high-bandwidth forwarding elements into a system with a low-bandwidth
 CPU. In many cases, the goal of the CPU is to only to handle control traffic
 for configuring the forwarding path, which is a fraction of the traffic handled
 by the actual forwarding path. Existing implementations may direct only traffic
-for a specific IP into the management CPU, or could plausibly use XDP to
-configure DoS filters so that only legitimate traffic is forwarded up the
-stack. Such implementations may not provide the degree of restriction on
-locally destined traffic that is desired, or may require additional
-co-ordination with the socket layer that requires significant orchestration.
+for a specific IP into the management CPU, or could redirect all traffic to the
+management CPU and configure DoS filters in XDP so that only legitimate traffic
+is forwarded up the stack. Such implementations may not provide the degree of
+restriction on locally destined traffic that is desired, or may require
+additional co-ordination with the socket layer that requires significant
+orchestration.
 
 Using the upcoming XDP support for socket lookup, early in the driver level of
 the Linux stack the traffic could be compared with the socket table and only
@@ -460,9 +463,9 @@ are open on a system.
 
 \section{Acknowledgments}
 
-The author would like to acknowledge Alexei Starovoitov, Daniel Borkmann,
-Martin KaFai Lau, Nitin Hande and Thomas Graf for guidance, review and testing
-of the patches.
+The author would like to acknowledge Alexei Starovoitov, Daniel Borkmann, Jarno
+Rajahalme, Martin KaFai Lau, Nitin Hande and Thomas Graf for guidance, review
+and testing of the patches, and feedback on this paper.
 
 \bibliographystyle{plainnat}
 \bibliography{paper}
