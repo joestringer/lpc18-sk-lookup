@@ -394,6 +394,14 @@ hook points~\cite{sk-lookup-xdp}.
 
 \section{Use cases}
 
+This work was initially motivated by an attempt to re-think stateful
+firewalling in the age of container networking, which is described in further
+detail below. During the development process, another use case was identified
+in the implementation of forwarding devices such as switches and routers, so
+more detail is provided for this use case as well. Additional use cases are
+expected to present themselves as BPF developers become more aware of the new
+capabilities.
+
 \subsection{Stateful Firewalling}
 
 Stateful firewalling is distinguished from stateless firewalling in that it
@@ -449,15 +457,19 @@ BPF logic programmed in the XDP hook.
 
 \section{Conclusion}
 
-This paper describes the contribution of new BPF verifier functionality in the
-Linux kernel to track references to kernel resources and uses these to provide
-access to socket introspection capabilities from packet handling hooks. The
-introduction of reference tracking logic into the verifier provides
-useful base infrastructure for supporting acquire and release semantics for
-kernel resources which may prove useful for other helpers in future, and the
-socket lookup API makes the packet hooks more powerful to support use cases
-such as stateful firewalling or conditional redirect based on the sockets that
-are open on a system.
+Recent trends in the deployment of cloud applications using container images
+through orchestrators such as Kubernetes have inspired a fresh look at the
+approach used to provide networking and filtering capabilities in the network.
+In light of these, this paper looks at the ability to perform stateful
+firewalling through introspection of local kernel state. This paper describes
+the contribution of new BPF verifier functionality in the Linux kernel to track
+references to kernel resources and uses these to provide access to socket
+attributes from packet handling hooks. The introduction of reference tracking
+logic into the verifier provides useful base infrastructure for supporting
+acquire and release semantics for kernel resources which may prove useful for
+other helpers in future, and the socket lookup API makes the packet hooks more
+powerful to support use cases ranging from stateful firewalling to handling
+management traffic in network devices.
 
 %\todo{Associate custom metadata with socket?}
 
