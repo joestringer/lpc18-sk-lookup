@@ -1650,7 +1650,7 @@ Computing Machinery]
             \ifx\@acmPrice\@empty\else\ \$\@acmPrice\fi\\
             \@formatdoi{\@acmDOI}
           \else % Conference
-          \f:
+          \fi
         \fi
       \fi}
   \endgroup
