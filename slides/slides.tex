@@ -29,6 +29,11 @@
   \endgroup
 }
 
+\definecolor{ashgrey}{rgb}{0.7, 0.75, 0.71}
+\definecolor{charcoal}{rgb}{0.21, 0.27, 0.31}
+\definecolor{powderblue}{rgb}{0.69, 0.88, 0.9}
+\newcommand\sectioncolor{\setbeamercolor{background canvas}{bg=powderblue}}
+
 \title[BPF Socket Lookup]{Building socket-aware BPF programs}
 \institute{Cilium.io}
 \author[Joe Stringer]{Joe Stringer}
@@ -50,60 +55,37 @@
         \vskip0pt%
 }
 
+\newcommand\newsectionpage[1]{
+    \section{}
+    {\sectioncolor
+        \begin{frame}
+            \vfill
+            \centering
+            \section{#1}
+            \begin{beamercolorbox}[sep=8pt,center,shadow=true,rounded=true]{title}
+                \usebeamerfont{title}\insertsectionhead\par%
+            \end{beamercolorbox}
+            \vfill
+        \end{frame}
+    }
+    \section{#1}
+}
+
 \date[Nov 13, 2018]{Linux Plumbers 2018, Vancouver, BC}
 
 \begin{document}
+    {\sectioncolor
     \begin{frame}
     \titlepage
     \end{frame}
+    }
 
-    % Background: What have people been doing for stateful firewalling?
-    \begin{frame}{A (selective) history of traffic filtering}
-        \begin{columns}[c]
-            \begin{column}{0.15\textwidth}
-                1992\\ \smallskip
-                1994\\ \smallskip
-                \ldots\\ \smallskip
-                1999\\ \smallskip
-                ~\\ \smallskip
-                2002\\ \smallskip
-                2005\\ \smallskip
-                2008\\ \smallskip
-                \ldots\\ \smallskip
-                2014\\ \smallskip
-            \end{column}
-            \hspace{-50pt}
-            \vrule{}
-            \begin{column}{0.85\textwidth}
-                %The Packet Filter (ACM SOSP)\\
-                The BSD Packet Filter [McCanne, Jacobson]\\ \smallskip
-                Stateful firewalls become commercially available\\ \smallskip
-                ~\\ \smallskip
-                Implementing a Distributed Firewall [Ioannidis {\em et al.}]\\ \smallskip
-                Linux TC (upstream 2000), Netfilter (upstream 2001)\\ \smallskip
-                BSD/OS IPFW [Lidl {\em et al.}]\\ \smallskip
-                A model of stateful firewalls [Gouda, Liu]\\ \smallskip
-                Linux Network Namespaces\\ \smallskip
-                ~\\ \smallskip
-                Linux gets Extended BPF\\ \smallskip
-            \end{column}
-        \end{columns}
+    \begin{frame}{}
+        \centering
+        \includegraphics[width=0.8\textwidth]{cilium_architecture.png}
     \end{frame}
 
-    % What happens with BPF when first introduced?
-    \begin{frame}{Berkeley Packet Filter}
-        \begin{itemize}
-            \item Initial use case: network monitoring \medskip % Successor to CSPF
-                \begin{itemize}
-                    \item Open socket \medskip
-                    \item Attach filter \medskip
-                    %\item Bob's your uncle
-                \end{itemize}
-            \item TCPdump becomes the de facto monitoring tool \medskip
-            \item BPF remains stateless, and just for socket filtering
-            %\item BSD/OS IPFW looked to extend this for other use cases
-        \end{itemize}
-    \end{frame}
+    \section{Background}
 
     % Why is this important?
     % Basic: Only allow legitimate replies
@@ -116,12 +98,73 @@
         \end{center}
     \end{frame}
 
+    % Background: What have people been doing for stateful firewalling?
+    %\begin{frame}{A (selective) history of traffic filtering}
+    %    \begin{columns}[c]
+    %        \begin{column}{0.15\textwidth}
+    %            1992\\ \smallskip
+    %            1994\\ \smallskip
+    %            \ldots\\ \smallskip
+    %            1999\\ \smallskip
+    %            ~\\ \smallskip
+    %            2002\\ \smallskip
+    %            2005\\ \smallskip
+    %            2008\\ \smallskip
+    %            \ldots\\ \smallskip
+    %            2014\\ \smallskip
+    %        \end{column}
+    %        \hspace{-50pt}
+    %        \vrule{}
+    %        \begin{column}{0.85\textwidth}
+    %            %The Packet Filter (ACM SOSP)\\
+    %            The BSD Packet Filter [McCanne, Jacobson]\\ \smallskip
+    %            Stateful firewalls become commercially available\\ \smallskip
+    %            ~\\ \smallskip
+    %            Implementing a Distributed Firewall [Ioannidis {\em et al.}]\\ \smallskip
+    %            Linux TC (upstream 2000), Netfilter (upstream 2001)\\ \smallskip
+    %            BSD/OS IPFW [Lidl {\em et al.}]\\ \smallskip
+    %            A model of stateful firewalls [Gouda, Liu]\\ \smallskip
+    %            Linux Network Namespaces\\ \smallskip
+    %            ~\\ \smallskip
+    %            Linux gets Extended BPF\\ \smallskip
+    %        \end{column}
+    %    \end{columns}
+    %\end{frame}
+
+    %% What happens with BPF when first introduced?
+    %\begin{frame}{Berkeley Packet Filter}
+    %    \begin{itemize}
+    %        \item Initial use case: network monitoring \medskip % Successor to CSPF
+    %            \begin{itemize}
+    %                \item Open socket \medskip
+    %                \item Attach filter \medskip
+    %                %\item Bob's your uncle
+    %            \end{itemize}
+    %        \item TCPdump becomes the de facto monitoring tool \medskip
+    %        \item BPF remains stateless, and just for socket filtering
+    %        %\item BSD/OS IPFW looked to extend this for other use cases
+    %    \end{itemize}
+    %\end{frame}
+
     % What does Linux do for firewalling?
-    \begin{frame}{Putting the ``state'' in ``stateful firewalls''}
+    \begin{frame}[fragile]{How have we built these before?}
+        \centering
+        \vfill
+        \begin{verbatim}
+      +-+    +--------------+    +--------------+
++-----+      |  Connection  |    |    Policy    |
+| NIC +------>   Tracker    +---->              +---->
++-----+      +--------------+    +--------------+
+        \end{verbatim}
+        \vfill
+    \end{frame}
+
+    % What does Linux do for firewalling?
+    \begin{frame}{Why model it like this?}
         \begin{itemize}
-             \item Firewalls might not be co-located with the workload \medskip
-             \item Firewalls should drop packets as quickly as possible \medskip
-             \item Solution? Build up state on-demand while processing packets \medskip
+             \item Firewalls might not be co-located with the workload \bigskip
+             \item Firewalls should drop packets as quickly as possible \bigskip
+             \item Solution? Build up state on-demand while processing packets \bigskip
         \end{itemize}
     \end{frame}
 
@@ -132,6 +175,7 @@
             \begin{itemize}
                 \item Key by 5-tuple \medskip
                 \item Associate counters, NAT state, etc. \medskip
+		\item Handle tuple flipping \medskip
             \end{itemize}
             \item ``Policy'' map \bigcmark \medskip
             \item Deploy! \bigcmark \smallskip
@@ -169,6 +213,8 @@
     %    \end{itemize}
     %\end{frame}
 
+    %\newsectionpage{Socket introspection from packet handlers}
+
     \begin{frame}{Recent trends: Distributed filtering}
         \begin{columns}[c]
             \begin{column}{0.5\textwidth}
@@ -178,10 +224,10 @@
                 \includegraphics[width=1.0\textwidth]{containers.jpg}
             \end{column}
         \end{columns}
-        \blfootnote{%
-            \tiny\url{http://www.routetocloud.com/2015/04/nsx-distributed-firewall-deep-dive/}}
-        \blfootnote{%
-            \tiny\url{https://www.flickr.com/photos/lukeprice88/9703431992}}
+        %\blfootnote{%
+        %    \tiny\url{http://www.routetocloud.com/2015/04/nsx-distributed-firewall-deep-dive/}}
+        %\blfootnote{%
+        %    \tiny\url{https://www.flickr.com/photos/lukeprice88/9703431992}}
         %\begin{itemize}
         %    \item Intelligent edge \bigskip
         %    \item Containers \medskip
@@ -202,10 +248,10 @@
     %        \blfootnote{{\tiny\url{https://www.zdnet.com/article/linus-torvalds-talks-about-coming-back-to-work-on-linux/}}}}}
     %\end{frame}
 
-    \begin{frame}{Socket table as a connection tracker}
-        \begin{flushleft}
-	    If we're co-located with the sockets~\ldots \medskip
-        \end{flushleft}
+    \begin{frame}{If we're co-located with the sockets~\ldots}
+        %\begin{flushleft}
+	%    If we're co-located with the sockets~\ldots \medskip
+        %\end{flushleft}
         %\begin{center}
 	%    \ldots~and we know the traffic is local~\dots \medskip
         %\end{center}
@@ -213,19 +259,46 @@
             \ldots~why build our own connection table? \medskip
         \end{flushright}
 	\begin{center}
-        \includegraphics[width=0.5\textwidth]{mindblown.png}
+        %\includegraphics[width=0.8\textwidth]{keanu.png}
+        \includegraphics[width=0.6\textwidth]{mindblown.png}
 	\end{center}
     \end{frame}
 
-    \begin{frame}{Socket-aware BPF programs}
+    \begin{frame}[fragile]{Socket table as a connection tracker}
+        \centering
+        \vfill
+        \begin{verbatim}
+      +-+    +--------------+    +--------------+
++-----+      |    Socket    |    |    Policy    |
+| NIC +------>    Table     +---->              +---->
++-----+      +--------------+    +--------------+
+        \end{verbatim}
+        \vfill
+    \end{frame}
+
+    \begin{frame}{Revisiting the model}
 	\begin{itemize}
-            \item Locality \medskip
-	    \item Safety \medskip
-            \item Performance \medskip
-            %\item Namespacing \medskip
-            %\item Socket identity \medskip
-            \item Metadata \medskip
+            \item Workloads operate on a separate kernel \bigskip
+            \item Network stacks are delicate flowers \bigskip
+            \item This approach doesn't work in all scenarios \bigskip
 	\end{itemize}
+    \end{frame}
+
+    \newsectionpage{Extending the BPF verifier}
+
+    %\begin{frame}{Building socket-aware BPF programs}
+    %    \begin{itemize}
+    %        \item Safety \medskip
+    %        \item Performance \medskip
+    %        %\item Namespacing \medskip
+    %        %\item Socket identity \medskip
+    %        \item Metadata \medskip
+    %    \end{itemize}
+    %\end{frame}
+
+    \begin{frame}{}
+        \centering
+        \includegraphics[width=0.8\textwidth]{verifier.png}
     \end{frame}
 
     \begin{frame}[fragile]{BPF verifier: Recap}
@@ -233,11 +306,11 @@
 	    \item At load time, loop over all instructions \smallskip
             \begin{itemize}
                 \item Validate pointer access \medskip
-                \item Build up program states \medskip
+                \item Ensure no loops \medskip
                 \item \ldots \medskip
             \end{itemize}
             \item Access memory out of bounds? \bigxmark \medskip
-            \item Ends in a ``bad'' state? \bigxmark \medskip
+            \item Returns pointers it shouldn't? \bigxmark \medskip
             \item Everything safe? \bigcmark \medskip
 	\end{itemize}
     \end{frame}
@@ -248,7 +321,7 @@
             \begin{itemize}
                 \item Some memory-management under RCU rules \medskip
             \end{itemize}
-            \item Earlier this year: \verb+BPF_PROG_TYPE_CGROUP_SOCK+ \smallskip
+            \item \verb+BPF_PROG_TYPE_CGROUP_SOCK+ \smallskip
             \begin{itemize}
                 \item Access safety via reference held across BPF execution \medskip
                 \item Bounds safety provided via bounds access checker \medskip
@@ -302,25 +375,93 @@
 
     \begin{frame}{Reference Acquisition}
         \begin{itemize}
-            \item Generate an identifier \medskip
-            \item Store the identifier in the verifier state \medskip
-            \item Associate the register with the identifier \medskip
+            \item Generate an identifier \bigskip
+            \item Store the identifier in the verifier state \bigskip
+            \item Associate the register with the identifier \bigskip
         \end{itemize}
     \end{frame}
 
     \begin{frame}[fragile]{Reference misuse}
         \begin{itemize}
-            \item Mangle and release \medskip
-            \item \verb+bpf_tail_call()+ \medskip
-            \item \verb+BPF_LD_ABS+, \verb+BPF_LD_IND+ \medskip
+            \item Mangle and release \bigskip
+            \item \verb+bpf_tail_call()+ \bigskip
+            \item \verb+BPF_LD_ABS+, \verb+BPF_LD_IND+ \bigskip
         \end{itemize}
     \end{frame}
 
     \begin{frame}{Reference release}
         \begin{itemize}
-            \item Validation of pointers \medskip
-            \item Remove identifier reference from state \medskip
-            \item Unassociate register identifier associations \medskip
+            \item Validation of pointers \bigskip
+            \item Remove identifier reference from state \bigskip
+            \item Unassociate register identifier associations \bigskip
+        \end{itemize}
+    \end{frame}
+
+    \newsectionpage{Extending the BPF API}
+
+    \begin{frame}[fragile]{Simplest form}
+        \begin{itemize}
+            \item \verb+struct bpf_sock *bpf_sk_lookup(struct sk_buff *);+ \bigskip
+            \item \verb+void bpf_sk_release(struct bpf_sock *);+ \bigskip
+        \end{itemize}
+    \end{frame}
+
+    \begin{frame}{Considerations for the API}
+        \begin{itemize}
+            \item Network Namespaces \bigskip
+            \item Arbitrary socket lookup \bigskip
+            \item Extensibility \bigskip
+            \item Performance \bigskip
+        \end{itemize}
+    \end{frame}
+
+    \begin{frame}[fragile]{Namespaces}
+        %\begin{itemize}
+        %    \item Container orchestration from root netns \bigskip
+        %    \item Container workload in child netns \bigskip
+        %\end{itemize}
+        \vfill
+        \centering
+        \begin{verbatim}
++----------------------------------------+
+|                 +--------------------+ |
+|                 | +------+  +------+ | |
+|                 | |      |  |      | | |
+|                 | |  c1  |  |  c2  | | |
+|                 | |      |  |      | | |
+|                 | +------+  +------+ | |
+|    +--------+   |  +--+  Pod         | |
+|    | netdev |   |  |  |              | |
+|    +----+---+   +--+-++--------------+ |
+|         |            |                 |
+|     +---+------------++                |
+|     |     Bridge      |         Host   |
+|     +---+-------------+                |
+|         |                              |
++---------+------------------------------+
+\end{verbatim}
+        \vfill
+    \end{frame}
+
+    \begin{frame}{Arbitrary socket lookup}
+        \begin{itemize}
+            \item Use any tuple for lookup \bigskip
+            \item Ease API across clsact, XDP \bigskip
+            \item Simplify packet mangle and lookup \bigskip
+        \end{itemize}
+    \end{frame}
+
+    \begin{frame}{Extensibility}
+        \begin{itemize}
+            \item Allow influencing lookup behaviour \bigskip
+            \item Determine socket type support at load time \bigskip
+        \end{itemize}
+    \end{frame}
+
+    \begin{frame}{Optimizations}
+        \begin{itemize}
+            \item Avoid reference counting \bigskip
+            \item Allow lookup using direct packet pointers \bigskip
         \end{itemize}
     \end{frame}
 
@@ -334,6 +475,54 @@
 
     \begin{frame}[fragile]{Socket structure}
         \verbatiminput{bpf-sock.h}
+    \end{frame}
+
+    \begin{frame}{Future work}
+        \begin{itemize}
+            \item Stronger firewall guarantees \bigskip
+            \item More socket attribute access \bigskip
+            \item Associate metadata with sockets \bigskip
+        \end{itemize}
+    \end{frame}
+
+    \section{}
+    \begin{frame}{Thank you}
+        \vfill
+	\centering
+	Joe Stringer \\\medskip
+	joe@cilium.io
+	\vfill
+    \end{frame}
+
+    %\begin{frame}{Thank you!}
+    %    \begin{columns}[c]
+    %        \begin{column}{0.3\textwidth}
+    %            \vfill
+    %            \centering
+    %    	https://cilium.io/ \\\bigskip
+    %    	@ciliumproject \\
+    %            %\includegraphics[width=1.0\textwidth]{dfw.png}
+    %            \vfill
+    %        \end{column}
+    %        %\hspace{-50pt}
+    %        %\vrule{}
+    %        \begin{column}{0.7\textwidth}
+    %            \vfill
+    %            \centering
+    %            Joe Stringer\\\bigskip
+    %            joe@cilium.io\\
+    %            %\includegraphics[width=1.0\textwidth]{containers.jpg}
+    %            \vfill
+    %        \end{column}
+    %    \end{columns}
+    %\end{frame}
+
+    \begin{frame}{Use case: Network devices}
+        \begin{itemize}
+	    \item Socket lookup from XDP \bigskip
+            \item Management traffic? Send up the stack \bigskip
+            \item Other traffic? Forward, route, load-balance \bigskip
+        \end{itemize}
     \end{frame}
 
 \end{document}
