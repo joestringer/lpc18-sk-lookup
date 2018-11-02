@@ -32,7 +32,8 @@
 \definecolor{ashgrey}{rgb}{0.7, 0.75, 0.71}
 \definecolor{charcoal}{rgb}{0.21, 0.27, 0.31}
 \definecolor{powderblue}{rgb}{0.69, 0.88, 0.9}
-\newcommand\sectioncolor{\setbeamercolor{background canvas}{bg=powderblue}}
+\definecolor{layerblue}{RGB}{213, 234, 254}
+\newcommand\sectioncolor{\setbeamercolor{background canvas}{bg=layerblue}}
 
 \title[BPF Socket Lookup]{Building socket-aware BPF programs}
 \institute{Cilium.io}
@@ -477,11 +478,23 @@
         \verbatiminput{bpf-sock.h}
     \end{frame}
 
+    \newsectionpage{Epilogue}
+
+    \begin{frame}{Use case: Network devices}
+        \begin{itemize}
+	    \item Socket lookup from XDP \bigskip
+            \item Management traffic? Send up the stack \bigskip
+            \item Other traffic? Forward, route, load-balance \bigskip
+        \end{itemize}
+    \end{frame}
+
     \begin{frame}{Future work}
         \begin{itemize}
             \item Stronger firewall guarantees \bigskip
             \item More socket attribute access \bigskip
             \item Associate metadata with sockets \bigskip
+            \item More uses for reference tracking \bigskip
+                % Spin-locks, RCU
         \end{itemize}
     \end{frame}
 
@@ -516,13 +529,5 @@
     %        \end{column}
     %    \end{columns}
     %\end{frame}
-
-    \begin{frame}{Use case: Network devices}
-        \begin{itemize}
-	    \item Socket lookup from XDP \bigskip
-            \item Management traffic? Send up the stack \bigskip
-            \item Other traffic? Forward, route, load-balance \bigskip
-        \end{itemize}
-    \end{frame}
 
 \end{document}
