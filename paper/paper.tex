@@ -122,7 +122,7 @@ through the program to ensure constraint such as that the program will halt,
 and that any dereferencing of pointers is done in a safe and controlled manner.
 For accessing socket pointers, this requires validation that memory accesses
 are within the bounds of the memory allocated for the structure, and that no
-modifications are made to the socket fields that would be cause the core socket
+modifications are made to the socket fields that would cause the core socket
 handling logic to get into a bad state. This is provided through extension of
 existing functionality which performs bounds verification and offset conversion
 for programs operating on CGroups hooks. Additionally, the underlying memory
@@ -335,14 +335,14 @@ function which would choose the Layer~4 protocol based upon a field in the
 tuple~\cite{sk-lookup-rfc}, however this would make it more difficult for BPF
 program writers to detect the support for different protocol types at compile
 time. When a socket type is unsupported, the initial implementation would
-return \verb+NULL+ at runtime, implying that there is no such socket. There is
-not a significant number of supported Layer~4 socket types in the Linux stack
-today, and the number is not expected to increase drastically, so it was
-considered simpler and easier to split out each Layer~4 socket lookup function
-into an independent helper call, so that the result could simply return a
-socket or \verb+NULL+ and not need to encode a representation of other error
-conditions. This simplifies not only the API, but also the verifier
-implementation that must understand the return type of the helper functions.
+return \verb+NULL+ at runtime, implying that there is no such socket. Only a
+few Layer~4 socket types exist in the Linux stack today, and the number is not
+expected to increase drastically, so it was considered simpler and easier to
+split out each Layer~4 socket lookup function into an independent helper call,
+so that the result could simply return a socket or \verb+NULL+ and not need to
+encode a representation of other error conditions. This simplifies not only the
+API, but also the verifier implementation that must understand the return type
+of the helper functions.
 
 \subsection{Optimizations}
 
@@ -411,18 +411,18 @@ commonly involves using a connection tracker to reconstruct the connection
 state of each endpoint of the connection without specific knowledge from those
 endpoints~\cite{conntrack,ovs-ct}.
 
-In cases where Linux is configured as a firewall between applications that
-exist in distinct Linux kernel copies running in the network, this is
-intuitive. The information that is needed to perform stateful firewalling is
-not present on the Linux instance that needs this information, so to understand
-the state of the peers the information must be either shared from the peers
-(assuming that the firewall orchestrator has control over the peer endpoints),
-or this information must be reconstructed based upon the packets that are seen
-on this intermediate Linux instance. However, in many cases this model is used
-when filtering traffic where one peer is co-located with the Linux stack that
+In cases where the kernel is configured as a firewall between applications that
+exist in distinct kernel instances running in the network, this is intuitive.
+The information that is needed to perform stateful firewalling is not present
+on the kernel instance that needs this information, so to understand the state
+of the peers the information must be either shared from the peers (assuming
+that the firewall orchestrator has control over the peer endpoints), or this
+information must be reconstructed based upon the packets that are seen on this
+intermediate kernel instance. However, in many cases this model is used when
+filtering traffic where one peer is co-located with the kernel stack that
 performs the firewalling, which already contains information about the local
 end of the connection. In this use case, the connection tracking table
-effectively duplicates knowledge that Linux already creates and maintains.
+effectively duplicates knowledge that the kernel already creates and maintains.
 
 Using the socket lookup functions described in this paper, in conjunction with
 the socket properties including local Layer~3 and Layer~4 information available
@@ -476,8 +476,8 @@ management traffic in network devices.
 \section{Acknowledgments}
 
 The author would like to acknowledge Alexei Starovoitov, Daniel Borkmann, Jarno
-Rajahalme, Martin KaFai Lau, Nitin Hande and Thomas Graf for guidance, review
-and testing of the patches, and feedback on this paper.
+Rajahalme, John Fastabend, Martin KaFai Lau, Nitin Hande and Thomas Graf for
+guidance, review and testing of the patches, and feedback on this paper.
 
 \bibliographystyle{plainnat}
 \bibliography{paper}
