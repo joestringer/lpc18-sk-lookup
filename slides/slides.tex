@@ -151,12 +151,13 @@
     \begin{frame}[fragile]{How have we built these before?}
         \centering
         \vfill
-        \begin{verbatim}
-      +-+    +--------------+    +--------------+
-+-----+      |  Connection  |    |    Policy    |
-| NIC +------>   Tracker    +---->              +---->
-+-----+      +--------------+    +--------------+
-        \end{verbatim}
+        \includegraphics[width=0.6\textwidth]{sfw-ct-policy.png}
+%        \begin{verbatim}
+%      +-+    +--------------+    +--------------+
+%+-----+      |  Connection  |    |    Policy    |
+%| NIC +------>   Tracker    +---->              +---->
+%+-----+      +--------------+    +--------------+
+%        \end{verbatim}
         \vfill
     \end{frame}
 
@@ -249,6 +250,8 @@
     %        \blfootnote{{\tiny\url{https://www.zdnet.com/article/linus-torvalds-talks-about-coming-back-to-work-on-linux/}}}}}
     %\end{frame}
 
+    \section{Socket-based firewalling}
+
     \begin{frame}{If we're co-located with the sockets~\ldots}
         %\begin{flushleft}
 	%    If we're co-located with the sockets~\ldots \medskip
@@ -268,12 +271,13 @@
     \begin{frame}[fragile]{Socket table as a connection tracker}
         \centering
         \vfill
-        \begin{verbatim}
-      +-+    +--------------+    +--------------+
-+-----+      |    Socket    |    |    Policy    |
-| NIC +------>    Table     +---->              +---->
-+-----+      +--------------+    +--------------+
-        \end{verbatim}
+        \includegraphics[width=0.6\textwidth]{sfw-sk-policy.png}
+%        \begin{verbatim}
+%      +-+    +--------------+    +--------------+
+%+-----+      |    Socket    |    |    Policy    |
+%| NIC +------>    Table     +---->              +---->
+%+-----+      +--------------+    +--------------+
+%        \end{verbatim}
         \vfill
     \end{frame}
 
@@ -407,14 +411,14 @@
         \end{itemize}
     \end{frame}
 
-    \begin{frame}{Considerations for the API}
-        \begin{itemize}
-            \item Network Namespaces \bigskip
-            \item Arbitrary socket lookup \bigskip
-            \item Extensibility \bigskip
-            \item Performance \bigskip
-        \end{itemize}
-    \end{frame}
+    %\begin{frame}{Considerations for the API}
+    %    \begin{itemize}
+    %        \item Network Namespaces \bigskip
+    %        \item Arbitrary socket lookup \bigskip
+    %        \item Extensibility \bigskip
+    %        \item Performance \bigskip
+    %    \end{itemize}
+    %\end{frame}
 
     \begin{frame}[fragile]{Namespaces}
         %\begin{itemize}
@@ -423,24 +427,25 @@
         %\end{itemize}
         \vfill
         \centering
-        \begin{verbatim}
-+----------------------------------------+
-|                 +--------------------+ |
-|                 | +------+  +------+ | |
-|                 | |      |  |      | | |
-|                 | |  c1  |  |  c2  | | |
-|                 | |      |  |      | | |
-|                 | +------+  +------+ | |
-|    +--------+   |  +--+  Pod         | |
-|    | netdev |   |  |  |              | |
-|    +----+---+   +--+-++--------------+ |
-|         |            |                 |
-|     +---+------------++                |
-|     |     Bridge      |         Host   |
-|     +---+-------------+                |
-|         |                              |
-+---------+------------------------------+
-\end{verbatim}
+        \includegraphics[width=0.8\textwidth]{sk-lookup-netns.png}
+%        \begin{verbatim}
+%+----------------------------------------+
+%|                 +--------------------+ |
+%|                 | +------+  +------+ | |
+%|                 | |      |  |      | | |
+%|                 | |  c1  |  |  c2  | | |
+%|                 | |      |  |      | | |
+%|                 | +------+  +------+ | |
+%|    +--------+   |  +--+  Pod         | |
+%|    | netdev |   |  |  |              | |
+%|    +----+---+   +--+-++--------------+ |
+%|         |            |                 |
+%|     +---+------------++                |
+%|     |     Bridge      |         Host   |
+%|     +---+-------------+                |
+%|         |                              |
+%+---------+------------------------------+
+%\end{verbatim}
         \vfill
     \end{frame}
 
