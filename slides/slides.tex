@@ -9,6 +9,7 @@
 \usepackage{listings}
 \usepackage{lmodern}
 \usepackage{pifont}
+\usepackage{svg} % Requires inkscape
 \usepackage{tikz}
 \usetikzlibrary{mindmap}
 \usepackage{verbatim}
@@ -151,7 +152,7 @@
     \begin{frame}[fragile]{How have we built these before?}
         \centering
         \vfill
-        \includegraphics[width=0.6\textwidth]{sfw-ct-policy.png}
+        \includesvg[width=0.8\textwidth]{sfw-ct-policy.svg}
 %        \begin{verbatim}
 %      +-+    +--------------+    +--------------+
 %+-----+      |  Connection  |    |    Policy    |
@@ -271,7 +272,7 @@
     \begin{frame}[fragile]{Socket table as a connection tracker}
         \centering
         \vfill
-        \includegraphics[width=0.6\textwidth]{sfw-sk-policy.png}
+        \includesvg[width=0.8\textwidth]{sfw-sk-policy.svg}
 %        \begin{verbatim}
 %      +-+    +--------------+    +--------------+
 %+-----+      |    Socket    |    |    Policy    |
@@ -427,7 +428,7 @@
         %\end{itemize}
         \vfill
         \centering
-        \includegraphics[width=0.8\textwidth]{sk-lookup-netns.png}
+        \includesvg[width=0.8\textwidth]{sk-lookup-netns.svg}
 %        \begin{verbatim}
 %+----------------------------------------+
 %|                 +--------------------+ |
