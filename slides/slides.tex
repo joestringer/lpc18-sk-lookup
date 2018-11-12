@@ -162,15 +162,6 @@
         \vfill
     \end{frame}
 
-    % What does Linux do for firewalling?
-    \begin{frame}{Why model it like this?}
-        \begin{itemize}
-             \item Firewalls might not be co-located with the workload \bigskip
-             \item Firewalls should drop packets as quickly as possible \bigskip
-             \item Solution? Build up state on-demand while processing packets \bigskip
-        \end{itemize}
-    \end{frame}
-
     \begin{frame}[fragile]{Let's do this with BPF}
         \begin{itemize}
             \item Attach BPF to packet hook \bigcmark \medskip
@@ -217,6 +208,16 @@
     %\end{frame}
 
     %\newsectionpage{Socket introspection from packet handlers}
+
+    % What does Linux do for firewalling?
+    \begin{frame}{Why model it like this?}
+        \begin{itemize}
+            \item Firewalls might not be co-located with the workload \bigskip
+            \item Firewalls should drop packets as quickly as possible \bigskip
+            \item Network stacks may be delicate flowers \bigskip
+            \item Solution? Build up state on-demand while processing packets \bigskip
+        \end{itemize}
+    \end{frame}
 
     \begin{frame}{Recent trends: Distributed filtering}
         \begin{columns}[c]
@@ -282,14 +283,6 @@
         \vfill
     \end{frame}
 
-    \begin{frame}{Revisiting the model}
-	\begin{itemize}
-            \item Workloads operate on a separate kernel \bigskip
-            \item Network stacks are delicate flowers \bigskip
-            \item This approach doesn't work in all scenarios \bigskip
-	\end{itemize}
-    \end{frame}
-
     \begin{frame}[fragile]{Socket safety}
         \begin{itemize}
             \item Sockets are reference-counted internally \smallskip
@@ -302,6 +295,9 @@
                 \item Bounds safety provided via bounds access checker \medskip
             \end{itemize}
             \item Packet hooks may execute before associated socket is known \medskip
+            \begin{itemize}
+                \item Need to handle reference counting \medskip
+            \end{itemize}
         \end{itemize}
     \end{frame}
 
@@ -319,6 +315,7 @@
 
     \begin{frame}{}
         \centering
+        \vfill
         \includegraphics[width=0.8\textwidth]{verifier.png}
     \end{frame}
 
