@@ -169,14 +169,16 @@
             \begin{itemize}
                 \item Key by 5-tuple \medskip
                 \item Associate counters, NAT state, etc. \medskip
-		\item Handle tuple flipping \medskip
+		        \item Handle tuple flipping \medskip
             \end{itemize}
             \item ``Policy'' map \bigcmark \medskip
             \item Deploy! \bigcmark \smallskip
+            \begin{itemize}
+                \item[] \medskip
+                \item[] \medskip
+                \item[] \medskip
+            \end{itemize}
         \end{itemize}
-        ~\\
-        ~\\
-        ~\\
     \end{frame}
 
     \begin{frame}[fragile]{Let's do this with BPF}
@@ -186,6 +188,7 @@
             \begin{itemize}
                 \item Key by 5-tuple \medskip
                 \item Associate counters, NAT state, etc. \medskip
+		        \item Handle tuple flipping \medskip
             \end{itemize}
             \item ``Policy'' map \bigcmark \medskip
             \item Deploy! \bigxmark \smallskip
@@ -219,7 +222,7 @@
         \end{itemize}
     \end{frame}
 
-    \begin{frame}{Recent trends: Distributed filtering}
+    \begin{frame}{Recent trends}
         \begin{columns}[c]
             \begin{column}{0.5\textwidth}
                 \includegraphics[width=1.0\textwidth]{dfw.png}
@@ -361,19 +364,19 @@
             \verb+sk = bpf_sk_lookup(+\ldots\verb+);+\\
             \verb+if (sk) {+\\
             ~~~~\ldots\\
+            ~~~~\verb+bpf_sk_release(sk);+\\
             \verb+}+\\
-            \verb+bpf_sk_release(sk);+\\
             \end{column}
             \hspace{0.02\textwidth}
         \end{columns}
     \end{frame}
 
     \begin{frame}{Reference counting in the BPF verifier}
-        \begin{itemize}
-            \item Resource acquisition \smallskip
-            \item Execution paths while resource is held \smallskip
-            \item Resource release \smallskip
-        \end{itemize}
+        \begin{enumerate}
+            \item Resource acquisition \bigskip
+            \item Execution paths while resource is held \bigskip
+            \item Resource release \bigskip
+        \end{enumerate}
     \end{frame}
 
     \begin{frame}{Reference Acquisition}
@@ -455,10 +458,17 @@
         \end{itemize}
     \end{frame}
 
-    \begin{frame}{Extensibility}
+    \begin{frame}[fragile]{Extensibility}
         \begin{itemize}
-            \item Allow influencing lookup behaviour \bigskip
-            \item Determine socket type support at load time \bigskip
+            \item Allow influencing lookup behaviour \smallskip
+            \begin{itemize}
+                \item \verb+SO_REUSEPORT+ \bigskip
+            \end{itemize}
+            \item Determine socket type support at load time \smallskip
+            \begin{itemize}
+                \item Socket type supported? Load the program \medskip
+                \item Not supported? Reject the program \bigskip
+            \end{itemize}
         \end{itemize}
     \end{frame}
 
